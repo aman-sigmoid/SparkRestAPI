@@ -11,8 +11,7 @@ df = df.withColumn('Date', df['Date'].cast('date'))
 df = df.drop_duplicates()
 df.createTempView("stocks")
 
-
-# spark.sql("SELECT * FROM stocks").show(df.count(), False)
+# spark.sql("SELECT * FROM stocks order by company").show(df.count(), False)
 
 def query_1():
     query1 = "Select stock_table.company, stock_table.date, stock_table.max_diff_stock_percent from " \
@@ -48,9 +47,10 @@ def query_3():
     return results
 
 def query_4():
-    query_4 = "Select stocks.company, stocks.open, stocks.close, ABS(stocks.close - stocks.open) " \
-              "as max_diff from (Select company, (Select open from stocks limit 1) as open, (select close from stocks order by Date DESC limit 1) as close " \
-              "from stocks group by company)stocks order by max_diff desc limit 1"
+    query_4 = "with df1 as (select company, open from (select company, open, dense_rank() over (partition by company order by date) as d_rank1 from stocks)stock_table where stock_table.d_rank1=1) " \
+              ", df2 as (select company, close from (select company, close, dense_rank() over (partition by company order by date desc) as d_rank2 from stocks)stock_table2 where stock_table2.d_rank2 = 1) " \
+              "select df1.company, df1.open, df2.close, df1.open-df2.close as max_diff from df1 inner join df2 where df1.company = df2.company " \
+              "order by max_diff DESC limit 1"
     data = spark.sql(query_4).collect()
     results = {}
     for row in data:
